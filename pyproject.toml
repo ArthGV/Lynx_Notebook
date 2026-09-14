@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lynx-notebook"
+version = "0.1.0"
+description = "TUI notebook for the Lynx programming language"
+requires-python = ">=3.11"
+dependencies = [
+    "lynx",
+    "textual[syntax]>=0.80",
+    "pygments>=2.14",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+lynx-notebook = "lynx_notebook.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["lynx_notebook*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
