@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
@@ -9,17 +9,26 @@ from textual.widget import Widget
 
 from lynx_notebook.engine import NotebookEngine
 from lynx_notebook.models import Cell, CellResult, CellType, Notebook
-from lynx_notebook.tui.theme import build_css
+from lynx_notebook.tui.theme import build_css, style_editor
+
+
+def _preview(source: str, label: str | None = None) -> str:
+    first = next((line.strip() for line in source.splitlines() if line.strip()), "")
+    head = first[:60]
+    bits = [lbl for lbl in [label, head] if lbl]
+    return "▸ " + " / ".join(bits) if bits else "▸ (empty)"
 
 
 class CodeCell(Widget):
     def __init__(self, cell: Cell, index: int) -> None:
-        super().__init__()
+        super().__init__(classes="cell")
         self.cell = cell
         self.index = index
+        self._collapsed = False
 
     def compose(self) -> ComposeResult:
         self.editor = TextArea.code_editor(self.cell.source, classes="code-editor")
+        style_editor(self.editor)
 
         self.output_text = Static("", classes="cell-output")
         self.output_text.visible = False
@@ -27,7 +36,11 @@ class CodeCell(Widget):
         self.error_text = Static("", classes="cell-error")
         self.error_text.visible = False
 
-        with Vertical(classes="cell"):
+        self.bar = Static("", classes="cell-bar")
+        self.bar.visible = False
+
+        yield self.bar
+        with Vertical(classes="cell-body"):
             yield self.editor
             yield self.output_text
             yield self.error_text
@@ -48,49 +61,99 @@ class CodeCell(Widget):
         else:
             self.error_text.visible = False
 
-    def focus_editor(self) -> None:
+    def set_collapsed(self, collapsed: bool) -> None:
+        self._collapsed = collapsed
+        self.set_class(collapsed, "collapsed")
+        if collapsed:
+            self.bar.visible = True
+            self.bar.update(_preview(self.cell.source))
+        if not collapsed:
+            self.bar.visible = False
+            self.editor.focus()
+
+    def toggle_collapsed(self) -> None:
+        self.set_collapsed(not self._collapsed)
+
+    def focus_body(self) -> None:
         self.editor.focus()
 
 
 class MarkdownCell(Widget):
     def __init__(self, cell: Cell, index: int) -> None:
-        super().__init__()
+        super().__init__(classes="cell")
         self.cell = cell
         self.index = index
         self._editing = False
+        self._collapsed = False
 
     def compose(self) -> ComposeResult:
         self.editor = TextArea.code_editor(self.cell.source, classes="md-editor")
+        style_editor(self.editor)
         self.editor.visible = False
 
         self.renderer = Markdown(self.cell.source, classes="md-render")
-        self.renderer.styles.padding = (1, 2)
+        self.renderer.styles.padding = (1, 1)
+        self.renderer.can_focus = True
 
-        with Vertical(classes="cell"):
+        self.bar = Static("", classes="cell-bar")
+        self.bar.visible = False
+        self.bar.can_focus = True
+
+        yield self.bar
+        with Vertical(classes="cell-body"):
             yield self.editor
             yield self.renderer
 
     def get_source(self) -> str:
         return self.editor.text
 
+    def enter_edit(self) -> None:
+        self._editing = True
+        self.editor.load_text(self.cell.source)
+        self.editor.visible = True
+        self.renderer.visible = False
+        self.editor.focus()
+
+    def exit_edit(self) -> None:
+        self._editing = False
+        self.cell.source = self.editor.text
+        self.renderer.update(self.editor.text)
+        self.editor.visible = False
+        self.renderer.visible = True
+        self.renderer.focus()
+
     def toggle_edit(self) -> None:
-        self._editing = not self._editing
-        self.editor.visible = self._editing
-        self.renderer.visible = not self._editing
-        if self._editing:
-            self.editor.load_text(self.cell.source)
+        (self.exit_edit if self._editing else self.enter_edit)()
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        self._collapsed = collapsed
+        self.set_class(collapsed, "collapsed")
+        if collapsed:
+            self._editing = False
+            self.editor.visible = False
+            self.renderer.visible = True
+            self.bar.visible = True
+            self.bar.update(_preview(self.cell.source, label="md"))
+            self.bar.focus()
+        else:
+            self.bar.visible = False
+            self.renderer.focus()
+
+    def toggle_collapsed(self) -> None:
+        self.set_collapsed(not self._collapsed)
+
+    def focus_body(self) -> None:
+        if self._collapsed:
+            self.bar.focus()
+        elif self._editing:
             self.editor.focus()
         else:
-            self.cell.source = self.editor.text
-            self.renderer.update(self.editor.text)
-
-    def focus_editor(self) -> None:
-        self.editor.focus()
+            self.renderer.focus()
 
 
 class InsertBar(Widget):
     def __init__(self, after_index: int) -> None:
-        super().__init__()
+        super().__init__(classes="insert-bar")
         self.after_index = after_index
 
     def compose(self) -> ComposeResult:
@@ -128,8 +191,11 @@ class NotebookApp(App):
         Binding("ctrl+m", "insert_markdown", "New md cell", show=True),
         Binding("ctrl+up", "prev_cell", "Previous cell", show=False),
         Binding("ctrl+down", "next_cell", "Next cell", show=False),
-        Binding("ctrl+backspace", "delete_cell", "Delete cell", show=True),
         Binding("ctrl+e", "toggle_markdown_edit", "Edit md cell", show=True),
+        Binding("ctrl+[", "collapse_cell", "Collapse cell", show=False),
+        Binding("ctrl+]", "expand_cell", "Expand cell", show=False),
+        Binding("escape", "exit_markdown_edit", "Finish md edit", show=False),
+        Binding("ctrl+backspace", "delete_cell", "Delete cell", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
     ]
 
@@ -144,6 +210,26 @@ class NotebookApp(App):
         yield Header()
         yield CellList(self.notebook, id="cell-list")
         yield Footer()
+
+    @on(events.Click)
+    def on_click(self, event: events.Click) -> None:
+        cell = self._ancestor_cell(event.widget)
+        if cell is None:
+            return
+        self.focused_cell_index = cell.index
+        if cell._collapsed:
+            cell.toggle_collapsed()
+            return
+        if isinstance(cell, MarkdownCell) and not cell._editing:
+            cell.enter_edit()
+
+    def _ancestor_cell(self, widget) -> CodeCell | MarkdownCell | None:
+        node: Widget | None = widget
+        while node is not None:
+            if isinstance(node, (CodeCell, MarkdownCell)):
+                return node
+            node = node.parent
+        return None
 
     @on(Button.Pressed, ".insert-btn")
     def on_insert_press(self, event: Button.Pressed) -> None:
@@ -175,11 +261,6 @@ class NotebookApp(App):
         self.focused_cell_index = new_index
         self._auto_save()
 
-    def action_toggle_markdown_edit(self) -> None:
-        widget = self._current_cell_widget()
-        if isinstance(widget, MarkdownCell):
-            widget.toggle_edit()
-
     def _refresh_cells(self, after_focus: int | None = None) -> None:
         cell_list = self.query_one("#cell-list")
         cell_list.remove_children()
@@ -203,9 +284,7 @@ class NotebookApp(App):
     def _focus_cell(self, index: int) -> None:
         if 0 <= index < len(self.cell_widgets):
             self.focused_cell_index = index
-            widget = self.cell_widgets[index]
-            if isinstance(widget, CodeCell) or (isinstance(widget, MarkdownCell) and widget._editing):
-                widget.focus_editor()
+            self.cell_widgets[index].focus_body()
 
     def _current_cell_widget(self) -> CodeCell | MarkdownCell | None:
         if 0 <= self.focused_cell_index < len(self.cell_widgets):
@@ -245,6 +324,26 @@ class NotebookApp(App):
         if self.focused_cell_index < len(self.cell_widgets) - 1:
             self.focused_cell_index += 1
             self._focus_cell(self.focused_cell_index)
+
+    def action_toggle_markdown_edit(self) -> None:
+        widget = self._current_cell_widget()
+        if isinstance(widget, MarkdownCell):
+            widget.toggle_edit()
+
+    def action_exit_markdown_edit(self) -> None:
+        widget = self._current_cell_widget()
+        if isinstance(widget, MarkdownCell) and widget._editing:
+            widget.exit_edit()
+
+    def action_collapse_cell(self) -> None:
+        widget = self._current_cell_widget()
+        if widget is not None:
+            widget.set_collapsed(True)
+
+    def action_expand_cell(self) -> None:
+        widget = self._current_cell_widget()
+        if widget is not None:
+            widget.set_collapsed(False)
 
     def action_quit(self) -> None:
         self._auto_save()

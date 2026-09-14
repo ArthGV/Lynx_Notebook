@@ -15,17 +15,39 @@ ACCENT = "#58a6ff"
 ERROR = "#ff5555"
 OUTPUT_TEXT = "#a8b3c0"
 INSERT_ZONE = "#303a48"
-OUTPUT_BG = "#12181f"
 HEADER_BG = "#161b22"
 HEADER_TEXT = "#e6edf3"
+COLLAPSED_HEADER = "#3b4654"
 
-# native color (raw user text, e.g. in the markdown editor)
 MD_EDIT_TEXT = "#e6edf3"
 MD_EDIT_BG = "#141b24"
 MD_EDIT_BORDER = "#1d2e45"
 
 
-def build_css(app_css: str = "") -> str:
+def editor_theme():
+    """A TextAreaTheme matching the notebook colors (no monokai brown)."""
+    from rich.style import Style
+    from textual.widgets._text_area import TextAreaTheme
+
+    return TextAreaTheme(
+        name="lynx-dark",
+        base_style=Style(color=CODE_TEXT, bgcolor=BG_COLOR),
+        gutter_style=Style(color=CODE_BORDER, bgcolor=BG_COLOR),
+        cursor_style=Style(color=ACCENT, bold=True),
+        cursor_line_gutter_style=Style(color=CODE_BORDER, bgcolor=BG_COLOR),
+        cursor_line_style=Style(bgcolor=SECONDARY_BG),
+        selection_style=Style(bgcolor="#1f3b57"),
+        bracket_matching_style=Style(color=ACCENT, bold=True),
+    )
+
+
+def style_editor(editor) -> None:
+    """Register the lynx theme on an editor and select it. Runs once per editor."""
+    editor.register_theme(editor_theme())
+    editor.theme = "lynx-dark"
+
+
+def build_css() -> str:
     return f"""
 $bg: {BG_COLOR};
 $secondary-bg: {SECONDARY_BG};
@@ -38,12 +60,12 @@ $accent: {ACCENT};
 $error: {ERROR};
 $output-text: {OUTPUT_TEXT};
 $insert-zone: {INSERT_ZONE};
-$output-bg: {OUTPUT_BG};
 $header-bg: {HEADER_BG};
 $header-text: {HEADER_TEXT};
 $md-edit-text: {MD_EDIT_TEXT};
 $md-edit-bg: {MD_EDIT_BG};
 $md-edit-border: {MD_EDIT_BORDER};
+$collapsed: {COLLAPSED_HEADER};
 
 Screen {{
     background: $bg;
@@ -72,6 +94,10 @@ Screen {{
     text-align: center;
 }}
 
+.insert-bar {{
+    height: 1;
+}}
+
 .insert-btn:hover {{
     color: $accent;
     background: $secondary-bg;
@@ -79,36 +105,55 @@ Screen {{
 
 .code-editor {{
     border: solid $code-border;
-    background: $bg;
-    color: $code-text;
+    height: auto;
+    min-height: 2;
 }}
 
 .md-editor {{
     border: solid $md-edit-border;
-    background: $md-edit-bg;
-    color: $md-edit-text;
+    height: auto;
+    min-height: 2;
 }}
 
 .md-render {{
     border: double $md-border;
-    background: $bg;
-    color: $md-text;
+    height: auto;
+    min-height: 2;
 }}
 
 .cell-output {{
     color: $output-text;
     padding: 0 0 0 2;
-    border: none;
+    height: auto;
 }}
 
 .cell-error {{
     color: $error;
     padding: 0 0 0 2;
-    border: none;
+    height: auto;
+}}
+
+.cell-body {{
+    height: auto;
+}}
+
+.cell.collapsed .cell-body {{
+    display: none;
+}}
+
+.cell-bar {{
+    height: 1;
+    color: $collapsed;
+    background: $bg;
+}}
+
+.cell-bar:hover {{
+    color: $accent;
 }}
 
 .cell {{
     margin: 0 0 1 0;
+    height: auto;
 }}
 
 #app-status {{
