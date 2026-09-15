@@ -2,18 +2,19 @@ import asyncio
 
 import pytest
 from textual import events
+from textual.widgets import Button, Static
 
 from lynx_notebook.engine import NotebookEngine
 from lynx_notebook.models import CellType
-from lynx_notebook.tui.app import CodeCell, MarkdownCell, NotebookApp
+from lynx_notebook.tui.app import CodeCell, NotebookApp
 
 
 def _app(path=None):
     engine = NotebookEngine()
     nb = engine.new_notebook()
     nb.add_cell(CellType.CODE, ">> 1")
-    nb.add_cell(CellType.MARKDOWN, "# Title\nbody")
     nb.add_cell(CellType.CODE, ">> 2")
+    nb.add_cell(CellType.CODE, ">> 3")
     return NotebookApp(engine=engine, notebook=nb, path=path)
 
 
@@ -30,8 +31,7 @@ async def test_app_composes_cells():
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.cell_widgets) == 3
-        assert app.cell_widgets[0].cell.type == CellType.CODE
-        assert app.cell_widgets[1].cell.type == CellType.MARKDOWN
+        assert all(isinstance(w, CodeCell) for w in app.cell_widgets)
 
 
 @pytest.mark.asyncio
@@ -42,8 +42,8 @@ async def test_run_cell_shows_output():
         first = app.cell_widgets[0]
         app.action_run_cell()
         await pilot.pause()
-        assert first.output_text.visible
-        assert str(first.output_text.render()) == "1"
+        assert first.result.visible
+        assert str(first.result.render()) == "› 1"
         assert first.cell.output == ["1"]
 
 
@@ -55,7 +55,7 @@ async def test_run_all_executes_each_code_cell():
         app.action_run_all()
         await pilot.pause()
         outs = [w.cell.output for w in app.cell_widgets]
-        assert outs == [["1"], [], ["2"]]
+        assert outs == [["1"], ["2"], ["3"]]
 
 
 @pytest.mark.asyncio
@@ -63,19 +63,16 @@ async def test_insert_and_delete_cell():
     app = _app()
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_insert_markdown()
+        app.action_insert_code()
         await pilot.pause()
         await pilot.pause()
-        assert [w.cell.type.value for w in app.cell_widgets] == [
-            "code", "markdown", "markdown", "code",
-        ]
+        assert len(app.cell_widgets) == 4
 
         app.focused_cell_index = 1
         app.action_delete_cell()
         await pilot.pause()
-        assert [w.cell.type.value for w in app.cell_widgets] == [
-            "code", "markdown", "code",
-        ]
+        assert len(app.cell_widgets) == 3
+        assert [w.cell.type.value for w in app.cell_widgets] == ["code", "code", "code"]
 
 
 @pytest.mark.asyncio
@@ -147,31 +144,36 @@ async def test_click_collapsed_cell_expands_it():
 
 
 @pytest.mark.asyncio
-async def test_click_markdown_renderer_enters_edit_and_esc_exits():
+async def test_click_on_status_bar_does_not_change_focus():
     app = _app()
     async with app.run_test() as pilot:
         await pilot.pause()
-        md = app.cell_widgets[1]
-        assert isinstance(md, MarkdownCell)
-        app.on_click(_click(md.renderer))
+        status = app.query_one("#app-status")
+        app.on_click(_click(status))
         await pilot.pause()
-        assert md._editing
-        assert md.editor.visible
-        assert app.focused_cell_index == 1
-        md.editor.load_text("## edited")
-        app.action_exit_markdown_edit()
-        await pilot.pause()
-        assert not md._editing
-        assert md.cell.source == "## edited"
-        assert md.renderer.visible
+        assert app.focused_cell_index == 0
 
 
 @pytest.mark.asyncio
-async def test_click_on_footer_does_not_change_focus():
+async def test_cells_have_delete_button():
     app = _app()
     async with app.run_test() as pilot:
         await pilot.pause()
-        footer = app.query_one("Footer")
-        app.on_click(_click(footer))
+        assert len(app.cell_widgets) == 3
+        for cell in app.cell_widgets:
+            btn = cell.query_one(".delete-btn")
+            assert isinstance(btn, Static)
+            assert "×" in str(btn.render())
+
+
+@pytest.mark.asyncio
+async def test_click_delete_button_deletes_cell():
+    app = _app()
+    async with app.run_test() as pilot:
         await pilot.pause()
-        assert app.focused_cell_index == 0
+        cell = app.cell_widgets[1]
+        btn = cell.query_one(".delete-btn")
+        app.on_click(_click(btn))
+        await pilot.pause()
+        await pilot.pause()
+        assert len(app.cell_widgets) == 2

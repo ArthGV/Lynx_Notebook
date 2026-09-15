@@ -4,24 +4,22 @@ from __future__ import annotations
 # All colors in one place. Edit here and the whole TUI follows.
 # ─────────────────────────────────────────────────────────────────────────────
 
-BG_COLOR = "#0f1419"
-SECONDARY_BG = "#1a1f29"
-CODE_BORDER = "#3b4654"
-FOCUS_ACCENT = "#58a6ff"
-MD_BORDER = "#2d5c8a"
-CODE_TEXT = "#e6edf3"
-MD_TEXT = "#c9d4e0"
-ACCENT = "#58a6ff"
-ERROR = "#ff5555"
-OUTPUT_TEXT = "#a8b3c0"
-INSERT_ZONE = "#303a48"
-HEADER_BG = "#161b22"
-HEADER_TEXT = "#e6edf3"
-COLLAPSED_HEADER = "#3b4654"
+BG_COLOR = "#000000"
+CELL_BG = "#000000"
+TEXT = "#ffffff"
+MUTED = "#ffffff"
+GUTTER = "#ffffff"
+BORDER = "#ffffff"
+ACCENT = "#ffffff"
+ERROR = "#ec8c8c"
+OUTPUT = "#96B6DA"
 
-MD_EDIT_TEXT = "#e6edf3"
-MD_EDIT_BG = "#141b24"
-MD_EDIT_BORDER = "#1d2e45"
+# ─────────────────────────────────────────────────────────────────────────────
+# Terminal font size is set in your terminal emulator (Cmd+ / Cmd−),
+# not from the app. The knobs below control density / spacing.
+# ─────────────────────────────────────────────────────────────────────────────
+CELL_MARGIN_BOTTOM = 1
+EDITOR_MIN_HEIGHT = 1
 
 
 def editor_theme():
@@ -31,12 +29,12 @@ def editor_theme():
 
     return TextAreaTheme(
         name="lynx-dark",
-        base_style=Style(color=CODE_TEXT, bgcolor=BG_COLOR),
-        gutter_style=Style(color=CODE_BORDER, bgcolor=BG_COLOR),
-        cursor_style=Style(color=ACCENT, bold=True),
-        cursor_line_gutter_style=Style(color=CODE_BORDER, bgcolor=BG_COLOR),
-        cursor_line_style=Style(bgcolor=SECONDARY_BG),
-        selection_style=Style(bgcolor="#1f3b57"),
+        base_style=Style(color=TEXT, bgcolor=CELL_BG),
+        gutter_style=Style(color=GUTTER, bgcolor=CELL_BG),
+        cursor_style=Style(color=BG_COLOR, bgcolor=ACCENT, bold=True),
+        cursor_line_gutter_style=Style(color=ACCENT, bgcolor=CELL_BG),
+        cursor_line_style=Style(bgcolor="#1b2028"),
+        selection_style=Style(bgcolor="#2b3850"),
         bracket_matching_style=Style(color=ACCENT, bold=True),
     )
 
@@ -50,33 +48,18 @@ def style_editor(editor) -> None:
 def build_css() -> str:
     return f"""
 $bg: {BG_COLOR};
-$secondary-bg: {SECONDARY_BG};
-$code-border: {CODE_BORDER};
-$focus-accent: {FOCUS_ACCENT};
-$md-border: {MD_BORDER};
-$code-text: {CODE_TEXT};
-$md-text: {MD_TEXT};
+$cell-bg: {CELL_BG};
+$text: {TEXT};
+$muted: {MUTED};
+$gutter: {GUTTER};
+$border: {BORDER};
 $accent: {ACCENT};
 $error: {ERROR};
-$output-text: {OUTPUT_TEXT};
-$insert-zone: {INSERT_ZONE};
-$header-bg: {HEADER_BG};
-$header-text: {HEADER_TEXT};
-$md-edit-text: {MD_EDIT_TEXT};
-$md-edit-bg: {MD_EDIT_BG};
-$md-edit-border: {MD_EDIT_BORDER};
-$collapsed: {COLLAPSED_HEADER};
+$output: {OUTPUT};
 
 Screen {{
     background: $bg;
-    color: $code-text;
-}}
-
-#header {{
-    background: $header-bg;
-    color: $header-text;
-    height: 1;
-    dock: top;
+    color: $text;
 }}
 
 #cell-list {{
@@ -85,51 +68,52 @@ Screen {{
     overflow-y: auto;
 }}
 
-.insert-btn {{
+#app-status {{
+    dock: bottom;
+    height: 1;
+    padding: 0 2;
+    background: $bg;
+    color: $muted;
+}}
+
+.code-cell {{
+    height: auto;
+    margin: 0 0 {CELL_MARGIN_BOTTOM} 0;
+}}
+
+.cell-frame {{
+    border: round $border;
+    background: $cell-bg;
+    height: auto;
+}}
+
+.delete-btn {{
+    dock: right;
+    width: 1;
+    height: auto;
     background: transparent;
-    color: $insert-zone;
-    border: none;
-    width: 100%;
-    height: 1;
-    text-align: center;
+    color: $muted;
 }}
 
-.insert-bar {{
-    height: 1;
-}}
-
-.insert-btn:hover {{
-    color: $accent;
-    background: $secondary-bg;
+.delete-btn:hover {{
+    color: $error;
 }}
 
 .code-editor {{
-    border: solid $code-border;
+    border: none;
     height: auto;
-    min-height: 2;
-}}
-
-.md-editor {{
-    border: solid $md-edit-border;
-    height: auto;
-    min-height: 2;
-}}
-
-.md-render {{
-    border: double $md-border;
-    height: auto;
-    min-height: 2;
+    min-height: {EDITOR_MIN_HEIGHT};
 }}
 
 .cell-output {{
-    color: $output-text;
-    padding: 0 0 0 2;
+    color: $output;
+    padding: 0 0 0 1;
     height: auto;
 }}
 
 .cell-error {{
     color: $error;
-    padding: 0 0 0 2;
+    padding: 0 0 0 1;
     height: auto;
 }}
 
@@ -143,23 +127,29 @@ Screen {{
 
 .cell-bar {{
     height: 1;
-    color: $collapsed;
-    background: $bg;
+    color: $muted;
+    background: transparent;
 }}
 
 .cell-bar:hover {{
     color: $accent;
 }}
 
-.cell {{
-    margin: 0 0 1 0;
-    height: auto;
+.insert-bar {{
+    height: 1;
+    align-horizontal: center;
 }}
 
-#app-status {{
-    dock: bottom;
+.insert-btn {{
+    background: transparent;
+    color: $muted;
+    border: none;
     height: 1;
-    background: $header-bg;
-    color: $output-text;
+    padding: 0 1;
+}}
+
+.insert-bar:hover .insert-btn {{
+    background: #1b2028;
+    color: $text;
 }}
 """
