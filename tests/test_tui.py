@@ -6,7 +6,8 @@ from textual.widgets import Button, Static
 
 from lynx_notebook.engine import NotebookEngine
 from lynx_notebook.models import CellType
-from lynx_notebook.tui.app import CodeCell, NotebookApp
+from lynx_notebook.tui.app import CodeCell, MarkdownCell, NotebookApp
+from lynx_notebook.tui.theme import load_theme
 
 
 def _app(path=None):
@@ -15,7 +16,7 @@ def _app(path=None):
     nb.add_cell(CellType.CODE, ">> 1")
     nb.add_cell(CellType.CODE, ">> 2")
     nb.add_cell(CellType.CODE, ">> 3")
-    return NotebookApp(engine=engine, notebook=nb, path=path)
+    return NotebookApp(engine=engine, notebook=nb, path=path, theme=load_theme(user_path=None))
 
 
 def _click(widget):
@@ -43,7 +44,7 @@ async def test_run_cell_shows_output():
         app.action_run_cell()
         await pilot.pause()
         assert first.result.visible
-        assert str(first.result.render()) == "› 1"
+        assert str(first.result.render()) == "▎ 1"
         assert first.cell.output == ["1"]
 
 
@@ -97,7 +98,7 @@ async def test_editor_uses_dark_theme():
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.cell_widgets[0].editor
-        assert editor.theme == "lynx-dark"
+        assert editor.theme == app.nb_theme.name
 
 
 @pytest.mark.asyncio
@@ -177,3 +178,41 @@ async def test_click_delete_button_deletes_cell():
         await pilot.pause()
         await pilot.pause()
         assert len(app.cell_widgets) == 2
+
+@pytest.mark.asyncio
+async def test_markdown_cell_renders_and_skips_engine():
+    app = _app()
+    app.notebook.add_cell(CellType.MARKDOWN, "# Title", index=0)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        md = app.cell_widgets[0]
+        assert isinstance(md, MarkdownCell)
+        md.show_view()
+        await pilot.pause()
+        assert md.view.display and not md.editor.display
+        app.focused_cell_index = 0
+        app.action_run_cell()
+        assert app.notebook.cells[0].output == []
+
+
+@pytest.mark.asyncio
+async def test_insert_markdown_cell():
+    app = _app()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_insert_markdown()
+        await pilot.pause()
+        await pilot.pause()
+        assert isinstance(app.cell_widgets[1], MarkdownCell)
+
+
+@pytest.mark.asyncio
+async def test_toggle_theme_switches_editor_theme():
+    app = _app()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        before = app.nb_theme.mode
+        app.action_toggle_theme()
+        await pilot.pause()
+        assert app.nb_theme.mode != before
+        assert app.cell_widgets[0].editor.theme == app.nb_theme.name

@@ -21,28 +21,25 @@ lynx-notebook notes.lxnb --run   # headless: run all cells, print outputs, stop 
 
 ## TUI
 
-```
-───────────────────────────────────────────────
-  │ >> 'result is'
-  │ >> x * 2                      ← code cell (single border)
-  ───────────────────────────────────────────────
-        result is
-        20                                        ← output (indented, plain text)
-  ····· + ·····                                    ← hover zone to insert a cell
-  ═══════════════════════════════════════════════
-            # My Analysis
-            Rendered markdown here.               ← markdown cell (double border)
-  ═══════════════════════════════════════════════
-```
-
-- Code cells get a solid single border; markdown cells render inline with a
-  double border. Click a rendered markdown cell to edit it; `Esc` or `Ctrl+E`
-  finishes the edit (border flips to single while editing).
+- Cells are soft cards on a quiet background; the focused cell gets an accent
+  border, hover reveals the `×` delete button and the `+` insert bar.
+- Markdown cells render inline. Click one (or focus it) to edit; blur or
+  `Ctrl+Enter` renders it again.
 - `Ctrl+[` folds the focused cell to a one-line `▸` preview; `Ctrl+]` (or a
   click on the preview) expands it.
 - Notebooks auto-save on cell run, insert, delete, and close.
-- Catching an error keeps it inline in the output area (red text) and state from
-  earlier cells is preserved.
+- Errors stay inline in the output area (red rail) and state from earlier cells
+  is preserved.
+
+#### Theming
+
+Every color, spacing value and glyph lives in
+`lynx_notebook/tui/themes/default.json` (light and dark palettes, syntax colors,
+paddings, glyphs). To customise, copy only the keys you want to change into
+`~/.config/lynx-notebook/theme.json`; it is merged over the defaults (a broken
+file is ignored with a message). `LYNX_THEME=light|dark` overrides `mode` for one
+run, and `mode: "auto"` follows the terminal background. `Ctrl+T` toggles
+light/dark live. Fonts are chosen in your terminal emulator, not the app.
 
 #### Keybindings
 
@@ -50,9 +47,9 @@ lynx-notebook notes.lxnb --run   # headless: run all cells, print outputs, stop 
 |---|---|
 | `Ctrl+Enter` | Run current cell |
 | `Ctrl+Shift+Enter` | Run all cells |
-| `Ctrl+N` / `Ctrl+M` | Insert code / markdown cell after current |
+| `Ctrl+N` / `F2` | Insert code / markdown cell after current |
 | `Ctrl+Up` / `Ctrl+Down` | Jump between cells |
-| `Ctrl+E` / `Esc` | Toggle / exit markdown edit mode |
+| `Ctrl+T` | Toggle light / dark theme |
 | `Ctrl+[` / `Ctrl+]` | Collapse / expand current cell |
 | `Ctrl+Backspace` | Delete current cell |
 | `Ctrl+Q` | Save & quit |
@@ -68,7 +65,8 @@ lynx_notebook/
 ├── cli.py              # entry point
 └── tui/
     ├── app.py          # Textual app + cell widgets
-    └── theme.py        # ALL colors in one file; build_css() compiles them
+    ├── theme.py        # loads the theme, builds editor theme + stylesheet
+    └── themes/default.json  # ALL colors, spacing, glyphs
 ```
 
 The engine has no UI dependency — `test_engine.py` runs cells headlessly. The

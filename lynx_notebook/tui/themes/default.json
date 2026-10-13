@@ -1,0 +1,91 @@
+{
+  "mode": "dark",
+
+  "fonts": {
+    "note": "A terminal can't set fonts: pick one in your terminal emulator (SF Mono / Menlo recommended). Reserved for future GUI frontends.",
+    "family": "SF Mono",
+    "size": 13
+  },
+
+  "spacing": {
+    "page_x": 3,
+    "page_y": 1,
+    "cell_gap": 1,
+    "cell_pad_x": 1,
+    "editor_min_height": 1,
+    "max_width": 110
+  },
+
+  "glyphs": {
+    "delete": "×",
+    "insert": "+",
+    "collapsed": "▸",
+    "output_rail": "▎",
+    "error_rail": "▎",
+    "preview_len": 60
+  },
+
+  "border": {
+    "cell": "round",
+    "focus": "round"
+  },
+
+  "themes": {
+    "dark": {
+      "bg": "#1C1C1E",
+      "surface": "#232326",
+      "surface_focus": "#2C2C2E",
+      "text": "#F2F2F7",
+      "text_secondary": "#AEAEB2",
+      "text_tertiary": "#636366",
+      "border": "#3A3A3C",
+      "border_focus": "#0A84FF",
+      "accent": "#0A84FF",
+      "accent_md": "#BF5AF2",
+      "error": "#FF453A",
+      "success": "#32D74B",
+      "output": "#AEAEB2",
+      "selection": "#0A84FF55",
+      "cursor_line": "#2C2C2E",
+      "syntax": {
+        "keyword": "#FF7AB2",
+        "string": "#FF8170",
+        "number": "#D9C97C",
+        "comment": "#7F8C98",
+        "function": "#67B7A4",
+        "operator": "#AEAEB2",
+        "type": "#5DD8FF",
+        "boolean": "#FF7AB2",
+        "variable": "#F2F2F7"
+      }
+    },
+    "light": {
+      "bg": "#F2F2F7",
+      "surface": "#FFFFFF",
+      "surface_focus": "#FFFFFF",
+      "text": "#1C1C1E",
+      "text_secondary": "#636366",
+      "text_tertiary": "#AEAEB2",
+      "border": "#D1D1D6",
+      "border_focus": "#007AFF",
+      "accent": "#007AFF",
+      "accent_md": "#AF52DE",
+      "error": "#FF3B30",
+      "success": "#28A745",
+      "output": "#636366",
+      "selection": "#007AFF33",
+      "cursor_line": "#F2F2F7",
+      "syntax": {
+        "keyword": "#AD3DA4",
+        "string": "#D12F1B",
+        "number": "#272AD8",
+        "comment": "#707F8C",
+        "function": "#326D74",
+        "operator": "#636366",
+        "type": "#0B4F79",
+        "boolean": "#AD3DA4",
+        "variable": "#1C1C1E"
+      }
+    }
+  }
+}
